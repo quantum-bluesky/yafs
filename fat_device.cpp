@@ -23,6 +23,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -45,12 +46,23 @@ uint8 ComputeCheckSum(uint8 *name){
 }
 
 FATDevice::FATDevice(const char *path, const char *access_mode){
-	std::unique_ptr<uint8[]> sector_buffer = std::unique_ptr<uint8[]>(new uint8[4096]);
-	try{
-		device_file = new FileIO(path , access_mode, true);
+        std::unique_ptr<uint8[]> sector_buffer = std::unique_ptr<uint8[]>(new uint8[4096]);
+        try{
+                const bool read_only_mode = (strcmp(access_mode, "r") == 0);
 
-		device_file->Read(sector_buffer.get() , 4096, 0);
-		memcpy(&bs_bpb , sector_buffer.get() , sizeof(BootSectorBIOSParameterBlock));
+                try {
+                        device_file = new FileIO(path , access_mode, true);
+                } catch (FileIO::FileIOException &f_io_exception) {
+                        if (read_only_mode && string(f_io_exception).find("Error while locking the file") != string::npos) {
+                                cerr << "Warning: " << string(f_io_exception) << " Continuing without locking the device for read-only access." << endl;
+                                device_file = new FileIO(path , access_mode, false);
+                        } else {
+                                throw;
+                        }
+                }
+
+                device_file->Read(sector_buffer.get() , 4096, 0);
+                memcpy(&bs_bpb , sector_buffer.get() , sizeof(BootSectorBIOSParameterBlock));
 
 		/* It will do some tests to check if the device has a FAT file system. */
 		/* Check BS_jmpBoot. */
