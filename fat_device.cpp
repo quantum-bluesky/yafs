@@ -273,7 +273,8 @@ void FATDevice::ReadDirectory(FATDirectory* fat_directory){
 	bool reading_lde = false;
 	FATElement *fat_element;
 	GenericEntry *ge;
-	vector<LongDirectoryEntryStructure> lde;
+        vector<LongDirectoryEntryStructure> lde;
+        lde.reserve(32);
 	std::unique_ptr<uint8[]> cluster_buffer = std::unique_ptr<uint8[]>(new uint8[cluster_size]);
 	uint32 current_cluster = 0;
 	uint32 i = 0 , total_entries = 0 , total_lde = 0;
@@ -360,7 +361,8 @@ RootDirectory* FATDevice::ReadDirectoriesTree(){
 	FATElement *fat_element;
 	GenericEntry *ge;
 	RootDirectory* root_directory = new RootDirectory();
-	vector<LongDirectoryEntryStructure> lde;
+        vector<LongDirectoryEntryStructure> lde;
+        lde.reserve(32);
 	std::unique_ptr<uint8[]> cluster_buffer = std::unique_ptr<uint8[]>(new uint8[cluster_size]);
 	uint32 current_cluster = 0; /* Used for FAT32. */
 	uint32 current_sector = 0; /* Used for FAT12 and FAT16. */

@@ -26,6 +26,7 @@
 #include "version.h"
 
 #include <cassert>
+#include <algorithm>
 #include <cstring>
 
 using namespace std;
@@ -43,15 +44,17 @@ void PrintHelp(){
 		"       yafs -d device_path -i [-v]" << endl << endl <<
 		"-v   Activates the verbose mode that will print debug information." << endl <<
 		"-d   It is used to specify the device that has a FAT file system. On Windows," << endl <<
-		"     the argument must be the device letter, i.e. \"e:\". On Unix, the" << endl <<
-		"     argument is the device file, i.e. \"/dev/hdb1\"." << endl << endl <<
-		"-f   It is used to specify the input or output file. If the option -r is used," << endl <<
-		"     the program will use this file to store the current file system directory" << endl <<
-		"     tree. If the option -w is used, the program will read the sorted file" << endl <<
-		"     system directory tree from the file." << endl << endl <<
-		"-i   With this option, the program only prints some information about the" << endl <<
-		"     device file system. It can't be combined with the -r or -w options." << endl << endl <<
-		"-r   With this option the program will print the current file system directory" << endl <<
+                "     the argument must be the device letter, i.e. \"e:\". On Unix, the" << endl <<
+                "     argument is the device file, i.e. \"/dev/hdb1\"." << endl << endl <<
+                "-f   It is used to specify the input or output file. If the option -r is used," << endl <<
+                "     the program will use this file to store the current file system directory" << endl <<
+                "     tree. If the option -w is used, the program will read the sorted file" << endl <<
+                "     system directory tree from the file." << endl << endl <<
+                "-o   Optional. When used with -r selects the export format. Supported values" << endl <<
+                "     are \"xml\" (default) and \"json\"." << endl << endl <<
+                "-i   With this option, the program only prints some information about the" << endl <<
+                "     device file system. It can't be combined with the -r or -w options." << endl << endl <<
+                "-r   With this option the program will print the current file system directory" << endl <<
 		"     tree in the file specified with -f option. It can't be combined with the" << endl <<
 		"     -i or -w options." << endl << endl <<
 		"-w   This option is the only one that modifies the device file system. The" << endl <<
@@ -69,8 +72,9 @@ void PrintErrorMessage(){
 #include "utils.h"
 
 int main(int argc , char **argv){
-	char *device_path = NULL, *io_file_path = NULL;
-	OperationMode operation_mode = INVALID_MODE;
+        char *device_path = NULL, *io_file_path = NULL;
+        OperationMode operation_mode = INVALID_MODE;
+        string output_format("xml");
 
 	cout << "YAFS (Yet Another FAT Sorter) - version " << Version::VERSION << endl;
 
@@ -78,7 +82,7 @@ int main(int argc , char **argv){
 	
 	/* Parse the command line. */
 	{
-		CommandLineParser commandLineParser(argc , argv , string("d:?f:?r?w?i?h?v?").c_str());
+                CommandLineParser commandLineParser(argc , argv , string("d:?f:?r?w?i?h?v?o:?").c_str());
 
 		if (commandLineParser.isValid()) {
 			int exclusive_options_count = 0;
@@ -115,26 +119,41 @@ int main(int argc , char **argv){
 				device_path = option->argument_value;
 			}
 
-			if ((option = commandLineParser.getOption('v'))->found) {
-				LogUtils::SetEnabled(true);
-			}
+                        if ((option = commandLineParser.getOption('v'))->found) {
+                                LogUtils::SetEnabled(true);
+                        }
+
+                        if ((option = commandLineParser.getOption('o'))->found) {
+                                if (operation_mode != READ_DIRECTORIES_TREE || option->argument_value == NULL) {
+                                        PrintErrorMessage();
+                                        return 1;
+                                }
+                                output_format = option->argument_value;
+                                transform(output_format.begin(), output_format.end(), output_format.begin(), ::tolower);
+                        }
 
 			if ((option = commandLineParser.getOption('f'))->found) {
 				io_file_path = option->argument_value;
 			}
 
-			assert (operation_mode != INVALID_MODE);
-			if (device_path == NULL
-					|| (io_file_path == NULL && operation_mode != FETCH_DEVICE_INFORMATION)) {
-				PrintErrorMessage();
-				return 1;
-			}
+                        assert (operation_mode != INVALID_MODE);
+                        if (device_path == NULL
+                                        || (io_file_path == NULL && operation_mode != FETCH_DEVICE_INFORMATION)) {
+                                PrintErrorMessage();
+                                return 1;
+                        }
 
-		} else {
-			PrintErrorMessage();
-			return 1;
-		}
-	}
+                } else {
+                        PrintErrorMessage();
+                        return 1;
+                }
+        }
+
+        if (operation_mode == READ_DIRECTORIES_TREE
+                        && output_format != "xml" && output_format != "json") {
+                PrintErrorMessage();
+                return 1;
+        }
 
 	FATDevice *fat_device = NULL;
    try{
@@ -157,14 +176,18 @@ int main(int argc , char **argv){
 			case READ_DIRECTORIES_TREE:{
 				fat_device = new FATDevice(final_device_path, "r");
 				ofstream io_file(io_file_path);
-				if(!io_file.is_open()){
-					cerr << "The file \"" << io_file_path << "\" could not be opened." << endl;
-					return 1;
-				}
-				root_directory = fat_device->ReadDirectoriesTree();
-				io_file << root_directory->ToXML();
-				delete root_directory;
-			}break;
+                                if(!io_file.is_open()){
+                                        cerr << "The file \"" << io_file_path << "\" could not be opened." << endl;
+                                        return 1;
+                                }
+                                root_directory = fat_device->ReadDirectoriesTree();
+                                if (output_format == "json") {
+                                        root_directory->WriteJSON(io_file);
+                                } else {
+                                        root_directory->WriteXML(io_file);
+                                }
+                                delete root_directory;
+                        }break;
 			case WRITE_DIRECTORIES_TREE:{
 				fat_device = new FATDevice(final_device_path, "r+");
 				root_directory = fat_device->ReadDirectoriesTree();
