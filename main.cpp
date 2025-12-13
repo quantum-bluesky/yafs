@@ -31,185 +31,228 @@
 
 using namespace std;
 
-enum OperationMode {
-	READ_DIRECTORIES_TREE,
-	WRITE_DIRECTORIES_TREE,
-	FETCH_DEVICE_INFORMATION,
-	INVALID_MODE
+enum OperationMode
+{
+        READ_DIRECTORIES_TREE,
+        WRITE_DIRECTORIES_TREE,
+        FETCH_DEVICE_INFORMATION,
+        INVALID_MODE
 };
 
-void PrintHelp(){
-	cerr <<
-		"Usage: yafs -d device_path -f file_path -{r | w} [-v]" << endl <<
-		"       yafs -d device_path -i [-v]" << endl << endl <<
-		"-v   Activates the verbose mode that will print debug information." << endl <<
-		"-d   It is used to specify the device that has a FAT file system. On Windows," << endl <<
-                "     the argument must be the device letter, i.e. \"e:\". On Unix, the" << endl <<
-                "     argument is the device file, i.e. \"/dev/hdb1\"." << endl << endl <<
-                "-f   It is used to specify the input or output file. If the option -r is used," << endl <<
-                "     the program will use this file to store the current file system directory" << endl <<
-                "     tree. If the option -w is used, the program will read the sorted file" << endl <<
-                "     system directory tree from the file." << endl << endl <<
-                "-o   Optional. When used with -r selects the export format. Supported values" << endl <<
-                "     are \"xml\" (default) and \"json\"." << endl << endl <<
-                "-i   With this option, the program only prints some information about the" << endl <<
-                "     device file system. It can't be combined with the -r or -w options." << endl << endl <<
-                "-r   With this option the program will print the current file system directory" << endl <<
-		"     tree in the file specified with -f option. It can't be combined with the" << endl <<
-		"     -i or -w options." << endl << endl <<
-		"-w   This option is the only one that modifies the device file system. The" << endl <<
-		"     program will read the sorted file system directory tree from the file" << endl <<
-		"     specified with -f option and then it will change the device file system" << endl <<
-		"     so the files and directories on it have an order equal to the order" << endl <<
-		"     specified in the input file. It can't be combined with the -i or -r" << endl <<
-		"     options." << endl;
+void PrintHelp()
+{
+        cerr << "Usage: yafs -d device_path -f file_path -{r | w} [-v]" << endl
+             << "       yafs -d device_path -i [-v]" << endl
+             << endl
+             << "-v   Activates the verbose mode that will print debug information." << endl
+             << "-d   It is used to specify the device that has a FAT file system. On Windows," << endl
+             << "     the argument must be the device letter, i.e. \"e:\". On Unix, the" << endl
+             << "     argument is the device file, i.e. \"/dev/hdb1\"." << endl
+             << endl
+             << "-f   It is used to specify the input or output file. If the option -r is used," << endl
+             << "     the program will use this file to store the current file system directory" << endl
+             << "     tree. If the option -w is used, the program will read the sorted file" << endl
+             << "     system directory tree from the file." << endl
+             << endl
+             << "-o   Optional. When used with -r selects the export format. Supported values" << endl
+             << "     are \"xml\" (default) and \"json\"." << endl
+             << endl
+             << "-i   With this option, the program only prints some information about the" << endl
+             << "     device file system. It can't be combined with the -r or -w options." << endl
+             << endl
+             << "-r   With this option the program will print the current file system directory" << endl
+             << "     tree in the file specified with -f option. It can't be combined with the" << endl
+             << "     -i or -w options." << endl
+             << endl
+             << "-w   This option is the only one that modifies the device file system. The" << endl
+             << "     program will read the sorted file system directory tree from the file" << endl
+             << "     specified with -f option and then it will change the device file system" << endl
+             << "     so the files and directories on it have an order equal to the order" << endl
+             << "     specified in the input file. It can't be combined with the -i or -r" << endl
+             << "     options." << endl;
 }
 
-void PrintErrorMessage(){
-	cerr << "Invalid program call. Try \"yafs -h\" to see the help." << endl;
+void PrintErrorMessage()
+{
+        cerr << "Invalid program call. Try \"yafs -h\" to see the help." << endl;
 }
 
-#include "utils.h"
+int main(int argc, char **argv)
+{
+        std::ios::sync_with_stdio(false);
+        cin.tie(NULL);
 
-int main(int argc , char **argv){
         char *device_path = NULL, *io_file_path = NULL;
         OperationMode operation_mode = INVALID_MODE;
         string output_format("xml");
+        bool show_help = false;
 
-	cout << "YAFS (Yet Another FAT Sorter) - version " << Version::VERSION << endl;
+        cout << "YAFS (Yet Another FAT Sorter) - version " << Version::VERSION << endl;
 
-	ExecutableDirectoryUtils::Initialize(argv[0]);
-	
-	/* Parse the command line. */
-	{
-                CommandLineParser commandLineParser(argc , argv , string("d:?f:?r?w?i?h?v?o:?").c_str());
+        /* Parse the command line. */
+        {
+                CommandLineParser commandLineParser(argc, argv, string("d:?f:?r?w?i?h?v?o:?").c_str());
 
-		if (commandLineParser.isValid()) {
-			int exclusive_options_count = 0;
-			const CommandLineParser::CommandLineOption *option = NULL;
+                if (!commandLineParser.isValid())
+                {
+                        PrintErrorMessage();
+                        return 1;
+                }
 
-			if ((option = commandLineParser.getOption('r'))->found) {
-				exclusive_options_count++;
-				operation_mode = READ_DIRECTORIES_TREE;
-			}
-			if ((option = commandLineParser.getOption('w'))->found) {
-				exclusive_options_count++;
-				operation_mode = WRITE_DIRECTORIES_TREE;
-			}
-			if ((option = commandLineParser.getOption('i'))->found) {
-				exclusive_options_count++;
-				operation_mode = FETCH_DEVICE_INFORMATION;
-			}
-			if ((option = commandLineParser.getOption('h'))->found) {
-				exclusive_options_count++;
-			}
+                int exclusive_options_count = 0;
+                const CommandLineParser::CommandLineOption *option = NULL;
 
-			if (exclusive_options_count > 1
-					|| exclusive_options_count == 0){
-				PrintErrorMessage();
-				return 1;
-			}
+                if ((option = commandLineParser.getOption('r'))->found)
+                {
+                        exclusive_options_count++;
+                        operation_mode = READ_DIRECTORIES_TREE;
+                }
+                if ((option = commandLineParser.getOption('w'))->found)
+                {
+                        exclusive_options_count++;
+                        operation_mode = WRITE_DIRECTORIES_TREE;
+                }
+                if ((option = commandLineParser.getOption('i'))->found)
+                {
+                        exclusive_options_count++;
+                        operation_mode = FETCH_DEVICE_INFORMATION;
+                }
+                if ((option = commandLineParser.getOption('h'))->found)
+                {
+                        exclusive_options_count++;
+                        show_help = true;
+                }
 
-			if (exclusive_options_count == 1 && operation_mode == INVALID_MODE) {
-				PrintHelp();
-				return 0;
-			}
+                if (exclusive_options_count > 1 || exclusive_options_count == 0)
+                {
+                        PrintErrorMessage();
+                        return 1;
+                }
 
-			if ((option = commandLineParser.getOption('d'))->found) {
-				device_path = option->argument_value;
-			}
+                if (show_help)
+                {
+                        PrintHelp();
+                        return 0;
+                }
 
-                        if ((option = commandLineParser.getOption('v'))->found) {
-                                LogUtils::SetEnabled(true);
-                        }
+                if ((option = commandLineParser.getOption('d'))->found)
+                {
+                        device_path = option->argument_value;
+                }
 
-                        if ((option = commandLineParser.getOption('o'))->found) {
-                                if (operation_mode != READ_DIRECTORIES_TREE || option->argument_value == NULL) {
-                                        PrintErrorMessage();
-                                        return 1;
-                                }
-                                output_format = option->argument_value;
-                                transform(output_format.begin(), output_format.end(), output_format.begin(), ::tolower);
-                        }
+                if ((option = commandLineParser.getOption('f'))->found)
+                {
+                        io_file_path = option->argument_value;
+                }
 
-			if ((option = commandLineParser.getOption('f'))->found) {
-				io_file_path = option->argument_value;
-			}
+                if (device_path == NULL)
+                {
+                        PrintErrorMessage();
+                        return 1;
+                }
 
-                        assert (operation_mode != INVALID_MODE);
-                        if (device_path == NULL
-                                        || (io_file_path == NULL && operation_mode != FETCH_DEVICE_INFORMATION)) {
+                if (operation_mode != FETCH_DEVICE_INFORMATION && io_file_path == NULL)
+                {
+                        PrintErrorMessage();
+                        return 1;
+                }
+
+                if ((option = commandLineParser.getOption('v'))->found)
+                {
+                        LogUtils::SetEnabled(true);
+                }
+
+                if ((option = commandLineParser.getOption('o'))->found)
+                {
+                        if (operation_mode != READ_DIRECTORIES_TREE || option->argument_value == NULL)
+                        {
                                 PrintErrorMessage();
                                 return 1;
                         }
+                        output_format = option->argument_value;
+                        transform(output_format.begin(), output_format.end(), output_format.begin(), ::tolower);
+                }
 
-                } else {
+                if (operation_mode == READ_DIRECTORIES_TREE && output_format != "xml" && output_format != "json")
+                {
                         PrintErrorMessage();
                         return 1;
                 }
         }
 
-        if (operation_mode == READ_DIRECTORIES_TREE
-                        && output_format != "xml" && output_format != "json") {
-                PrintErrorMessage();
+        ExecutableDirectoryUtils::Initialize(argv[0]);
+
+        FATDevice *fat_device = NULL;
+        try
+        {
+                char *final_device_path;
+                RootDirectory *root_directory;
+
+#ifdef WIN_SYSTEM
+                if (strlen(device_path) != 2 || device_path[1] != ':')
+                {
+                        PrintErrorMessage();
+                        return 1;
+                }
+                final_device_path = new char[7];
+                memcpy(final_device_path, "\\\\.\\?:", 7);
+                final_device_path[4] = device_path[0];
+#elif UNIX_SYSTEM
+                final_device_path = device_path;
+#endif
+
+                switch (operation_mode)
+                {
+                case READ_DIRECTORIES_TREE:
+                {
+                        fat_device = new FATDevice(final_device_path, "r");
+                        ofstream io_file(io_file_path);
+                        if (!io_file.is_open())
+                        {
+                                cerr << "The file \"" << io_file_path << "\" could not be opened." << endl;
+                                return 1;
+                        }
+                        root_directory = fat_device->ReadDirectoriesTree();
+                        if (output_format == "json")
+                        {
+                                root_directory->WriteJSON(io_file);
+                        }
+                        else
+                        {
+                                root_directory->WriteXML(io_file);
+                        }
+                        delete root_directory;
+                }
+                break;
+                case WRITE_DIRECTORIES_TREE:
+                {
+                        fat_device = new FATDevice(final_device_path, "r+");
+                        root_directory = fat_device->ReadDirectoriesTree();
+                        root_directory->ImportNewOrder(io_file_path);
+                        fat_device->WriteDirectoriesTree(root_directory);
+                        delete root_directory;
+                }
+                break;
+                case FETCH_DEVICE_INFORMATION:
+                {
+                        fat_device = new FATDevice(final_device_path, "r");
+                        cout << *fat_device;
+                }
+                break;
+                case INVALID_MODE:
+                        break;
+                }
+        }
+        catch (Exception e)
+        {
+                cerr << "Exception: " << e << endl;
                 return 1;
         }
 
-	FATDevice *fat_device = NULL;
-   try{
-		char *final_device_path;
-		RootDirectory *root_directory;
+        if (fat_device != NULL)
+        {
+                delete fat_device;
+        }
 
-		#ifdef WIN_SYSTEM
-			if(strlen(device_path) != 2 || device_path[1] != ':'){
-				PrintErrorMessage();
-				return 1;
-			}
-			final_device_path = new char[7];
-			memcpy(final_device_path , "\\\\.\\?:" , 7);
-			final_device_path[4] = device_path[0];
-		#elif UNIX_SYSTEM
-			final_device_path = device_path;
-		#endif
-
-		switch(operation_mode){
-			case READ_DIRECTORIES_TREE:{
-				fat_device = new FATDevice(final_device_path, "r");
-				ofstream io_file(io_file_path);
-                                if(!io_file.is_open()){
-                                        cerr << "The file \"" << io_file_path << "\" could not be opened." << endl;
-                                        return 1;
-                                }
-                                root_directory = fat_device->ReadDirectoriesTree();
-                                if (output_format == "json") {
-                                        root_directory->WriteJSON(io_file);
-                                } else {
-                                        root_directory->WriteXML(io_file);
-                                }
-                                delete root_directory;
-                        }break;
-			case WRITE_DIRECTORIES_TREE:{
-				fat_device = new FATDevice(final_device_path, "r+");
-				root_directory = fat_device->ReadDirectoriesTree();
-				root_directory->ImportNewOrder(io_file_path);
-				fat_device->WriteDirectoriesTree(root_directory);
-				delete root_directory;
-			}break;
-			case FETCH_DEVICE_INFORMATION:{
-				fat_device = new FATDevice(final_device_path, "r");
-				cout << *fat_device;
-			}break;
-			case INVALID_MODE:
-			break;
-		}
-   }catch(Exception e){
-     cerr << "Exception: " << e << endl;
-	  return 1;
-   }
-
-   if (fat_device != NULL) {
-		delete fat_device;
-	}
-
-   return 0;
+        return 0;
 }
