@@ -61,32 +61,35 @@ FileIO::FileIO(const char* path , const char* mode , bool lock){
 
 	/* Windows. */
 	#ifdef WIN_SYSTEM
-		DWORD  creation_disposition = 0 , flags , unused, dwFlagsAndAttributes = FILE_ATTRIBUTE_SYSTEM;
+                DWORD  creation_disposition = 0 , flags , unused, dwFlagsAndAttributes = FILE_ATTRIBUTE_SYSTEM;
+                DWORD  share_mode = FILE_SHARE_WRITE;
 
-		if(!strcmp(mode , "r")){
-			flags = FILE_GENERIC_READ;
-			creation_disposition = OPEN_EXISTING;
-			this->mode = READ_MODE;
-		}else if(!strcmp(mode , "w")){
-			flags = FILE_GENERIC_WRITE;
-			creation_disposition = CREATE_ALWAYS;
-			this->mode = WRITE_MODE;
-		}else if(!strcmp(mode , "r+")){
-			flags = FILE_READ_DATA | FILE_WRITE_DATA;
-			creation_disposition = OPEN_EXISTING;
-			this->mode = READ_MODE | WRITE_MODE;
-			dwFlagsAndAttributes |= FILE_FLAG_WRITE_THROUGH;
-		}else if(!strcmp(mode , "w+")){
-			flags = FILE_READ_DATA | FILE_WRITE_DATA;
-			creation_disposition = CREATE_ALWAYS;
-			this->mode = READ_MODE | WRITE_MODE;
-			dwFlagsAndAttributes = FILE_FLAG_WRITE_THROUGH;
-		}else throw FileIOException("The second parameter is invalid.");
+                if(!strcmp(mode , "r")){
+                        flags = FILE_GENERIC_READ;
+                        creation_disposition = OPEN_EXISTING;
+                        this->mode = READ_MODE;
+                        share_mode |= FILE_SHARE_READ;
+                }else if(!strcmp(mode , "w")){
+                        flags = FILE_GENERIC_WRITE;
+                        creation_disposition = CREATE_ALWAYS;
+                        this->mode = WRITE_MODE;
+                }else if(!strcmp(mode , "r+")){
+                        flags = FILE_READ_DATA | FILE_WRITE_DATA;
+                        creation_disposition = OPEN_EXISTING;
+                        this->mode = READ_MODE | WRITE_MODE;
+                        share_mode |= FILE_SHARE_READ;
+                        dwFlagsAndAttributes |= FILE_FLAG_WRITE_THROUGH;
+                }else if(!strcmp(mode , "w+")){
+                        flags = FILE_READ_DATA | FILE_WRITE_DATA;
+                        creation_disposition = CREATE_ALWAYS;
+                        this->mode = READ_MODE | WRITE_MODE;
+                        dwFlagsAndAttributes = FILE_FLAG_WRITE_THROUGH;
+                }else throw FileIOException("The second parameter is invalid.");
 
 		dwFlagsAndAttributes |= FILE_FLAG_NO_BUFFERING;
 
-		if(INVALID_HANDLE_VALUE == (file = CreateFile((LPCTSTR)path , flags , FILE_SHARE_WRITE
-				, NULL , creation_disposition , dwFlagsAndAttributes , NULL))){
+                if(INVALID_HANDLE_VALUE == (file = CreateFile((LPCTSTR)path , flags , share_mode
+                                , NULL , creation_disposition , dwFlagsAndAttributes , NULL))){
 			throwIOExceptionWithErrorCode(string("Error while opening the file \"") + path + "\".");
 		}
 		if(lock && 0 == DeviceIoControl(file , (DWORD)FSCTL_LOCK_VOLUME , NULL , 0 , NULL , 0 , (LPDWORD)&unused , NULL)){
