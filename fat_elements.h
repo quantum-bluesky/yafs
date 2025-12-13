@@ -25,13 +25,14 @@
 	#define YAFS_FAT_ELEMENTS_H
 
 	#include "fat.h"
-	#include "fat_device_type.h"
-	#include "exception.h"
-	#include "string_compare.h"
+        #include "fat_device_type.h"
+        #include "exception.h"
+        #include "string_compare.h"
 
-	#include <map>
-	#include <string>
-	#include <vector>
+        #include <map>
+        #include <ostream>
+        #include <string>
+        #include <vector>
 	/* Xerces includes: */
 	#include <xercesc/dom/DOM.hpp>
 	using namespace std;
@@ -56,14 +57,14 @@
 				delete[] short_name;
 			}
 
-			virtual bool IsDirectory() = 0;
+                        virtual bool IsDirectory() const = 0;
 			virtual string ToXML(uint32 n_tabs) = 0;
-			bool operator<(FATElement &fat_element){
-				return order < fat_element.order;
-			}
-			bool HasVolumeIDAttribute(){
-				return (attributes & ATTR_VOLUME_ID) != 0;
-			}
+                        bool operator<(const FATElement &fat_element) const{
+                                return order < fat_element.order;
+                        }
+                        bool HasVolumeIDAttribute() const{
+                                return (attributes & ATTR_VOLUME_ID) != 0;
+                        }
 			friend class FATDevice;
 			friend class FATDirectory;
 			friend class RootDirectory;
@@ -84,9 +85,9 @@
 			FATFile(const DirectoryEntryStructure *de ,
 				const vector<LongDirectoryEntryStructure> lde):FATElement(de , lde){
 			}
-			virtual bool IsDirectory(){
-				return false;
-			}
+                        virtual bool IsDirectory() const{
+                                return false;
+                        }
 			virtual string ToXML(uint32 n_tabs);
 	};
 
@@ -96,9 +97,9 @@
 				const vector<LongDirectoryEntryStructure> lde):FATElement(de , lde){
 			}
 			virtual ~FATDirectory();
-			virtual bool IsDirectory(){
-				return true;
-			}
+                        virtual bool IsDirectory() const{
+                                return true;
+                        }
 			virtual string ToXML(uint32 n_tabs);
 			void InsertFATElement(FATElement *fat_element);
 			void Sort();
@@ -121,22 +122,26 @@
 
 	class RootDirectory {
 		public:
-			~RootDirectory();
-			void InsertFATElement(FATElement *fat_element);
-			string ToXML();
-			void ImportNewOrder(const char* xml_file);
+                        ~RootDirectory();
+                        void InsertFATElement(FATElement *fat_element);
+                        string ToXML();
+                        void WriteXML(std::ostream& output) const;
+                        void WriteJSON(std::ostream& output) const;
+                        void ImportNewOrder(const char* xml_file);
 
 			class RootDirectoryException : public Exception {
 				public:
 					RootDirectoryException(string message = ""):Exception(message){}
 			};
 			friend class FATDevice;
-		private:
-			vector<FATElement*> content;
-			map<const char* , FATElement* , StringCompare> content_map;
+                private:
+                        vector<FATElement*> content;
+                        map<const char* , FATElement* , StringCompare> content_map;
 
-			void Sort();
-			bool ReorderFATElement(uint8* short_name , uint32 order, FATElement** fat_element);
-	};
+                        void Sort();
+                        bool ReorderFATElement(uint8* short_name , uint32 order, FATElement** fat_element);
+                        static void WriteElementXML(const FATElement* element, std::ostream& output, uint32 n_tabs);
+                        static void WriteElementJSON(const FATElement* element, std::ostream& output, uint32 n_tabs, const std::string& parent_path);
+        };
 
 #endif

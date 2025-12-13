@@ -41,9 +41,70 @@ XERCES_CPP_NAMESPACE_USE
 const string xsd_file_name("fat_file_system_tree.xsd");
 
 stringstream* PrintTabs(stringstream *buffer , uint32 n_tabs){
-	for( ; n_tabs > 0 ; n_tabs--)
-		(*buffer) << '\t';
-	return buffer;
+        for( ; n_tabs > 0 ; n_tabs--)
+                (*buffer) << '\t';
+        return buffer;
+}
+
+ostream& PrintTabs(ostream &output , uint32 n_tabs){
+        for( ; n_tabs > 0 ; n_tabs--)
+                output << '\t';
+        return output;
+}
+
+void WriteXmlEscaped(ostream &output, const char* text) {
+        for (size_t i = 0; text[i]; i++) {
+                switch (text[i]) {
+                        case '<':
+                                output << "&lt;";
+                        break;
+                        case '>':
+                                output << "&gt;";
+                        break;
+                        case '&':
+                                output << "&amp;";
+                        break;
+                        case '\'':
+                                output << "&apos;";
+                        break;
+                        case '"':
+                                output << "&quot;";
+                        break;
+                        default:
+                                output << text[i];
+                        break;
+                }
+        }
+}
+
+void WriteJsonEscaped(ostream &output, const char* text) {
+        for (size_t i = 0; text[i]; i++) {
+                const char c = text[i];
+                switch (c) {
+                        case '\\':
+                        case '"':
+                                output << '\\' << c;
+                        break;
+                        case '\b':
+                                output << "\\b";
+                        break;
+                        case '\f':
+                                output << "\\f";
+                        break;
+                        case '\n':
+                                output << "\\n";
+                        break;
+                        case '\r':
+                                output << "\\r";
+                        break;
+                        case '\t':
+                                output << "\\t";
+                        break;
+                        default:
+                                output << c;
+                        break;
+                }
+        }
 }
 
 template <class CharSequence> stringstream* PrintAndReplaceReservedCharacters(stringstream *buffer , CharSequence char_sequence){
@@ -286,20 +347,121 @@ bool FATDirectory::ReorderFATElement(uint8* short_name , uint32 order , FATEleme
 }
 
 /* RootDirectory. */
+void RootDirectory::WriteElementXML(const FATElement* element, std::ostream& output, uint32 n_tabs) {
+        if (element->IsDirectory()) {
+                const FATDirectory* directory = (const FATDirectory*) element;
+                PrintTabs(output, n_tabs) << "<directory order=\"" << directory->order << "\">" << endl;
+                if(directory->long_name){
+                        PrintTabs(output, n_tabs + 1) << "<long_name>";
+                        WriteXmlEscaped(output, (char*)directory->long_name);
+                        output << "</long_name>" << endl;
+                }
+                PrintTabs(output, n_tabs + 1) << "<short_name>";
+                WriteXmlEscaped(output, (char*)directory->short_name);
+                output << "</short_name>" << endl;
+
+                for (uint32 i = 0; i < directory->content.size(); i++) {
+                        WriteElementXML(directory->content[i], output, n_tabs + 1);
+                }
+
+                PrintTabs(output, n_tabs) << "</directory>" << endl;
+        } else {
+                const FATFile* file = (const FATFile*) element;
+                PrintTabs(output, n_tabs) << "<file order=\"" << file->order << "\"";
+                if (file->HasVolumeIDAttribute()) {
+                        output << " volume=\"true\"";
+                }
+                output << ">" << endl;
+
+                if(file->long_name){
+                        PrintTabs(output, n_tabs + 1) << "<long_name>";
+                        WriteXmlEscaped(output, (char*)file->long_name);
+                        output << "</long_name>" << endl;
+                }
+                PrintTabs(output, n_tabs + 1) << "<short_name>";
+                WriteXmlEscaped(output, (char*)file->short_name);
+                output << "</short_name>" << endl;
+
+                PrintTabs(output, n_tabs) << "</file>" << endl;
+        }
+}
+
+void RootDirectory::WriteElementJSON(const FATElement* element, std::ostream& output, uint32 n_tabs, const std::string& parent_path) {
+        std::string current_path(parent_path);
+        if (!current_path.empty()) {
+                current_path.append("/");
+        }
+        current_path.append(element->long_name ? (char*)element->long_name : (char*)element->short_name);
+
+        PrintTabs(output, n_tabs) << "{" << endl;
+        PrintTabs(output, n_tabs + 1) << "\"type\":\"" << (element->IsDirectory() ? "directory" : "file") << "\"," << endl;
+        PrintTabs(output, n_tabs + 1) << "\"order\":" << element->order << "," << endl;
+        PrintTabs(output, n_tabs + 1) << "\"path\":\"";
+        WriteJsonEscaped(output, current_path.c_str());
+        output << "\"," << endl;
+        PrintTabs(output, n_tabs + 1) << "\"shortName\":\"";
+        WriteJsonEscaped(output, (char*)element->short_name);
+        output << "\"";
+        if(element->long_name){
+                output << "," << endl;
+                PrintTabs(output, n_tabs + 1) << "\"longName\":\"";
+                WriteJsonEscaped(output, (char*)element->long_name);
+                output << "\"";
+        }
+
+        if (element->IsDirectory()) {
+                const FATDirectory* directory = (const FATDirectory*) element;
+                output << "," << endl;
+                PrintTabs(output, n_tabs + 1) << "\"children\":[" << endl;
+                for (uint32 i = 0; i < directory->content.size(); i++) {
+                        WriteElementJSON(directory->content[i], output, n_tabs + 2, current_path);
+                        if (i + 1 < directory->content.size()) {
+                                output << ",";
+                        }
+                        output << endl;
+                }
+                PrintTabs(output, n_tabs + 1) << "]" << endl;
+                PrintTabs(output, n_tabs) << "}";
+        } else {
+                if (element->HasVolumeIDAttribute()) {
+                        output << "," << endl;
+                        PrintTabs(output, n_tabs + 1) << "\"volume\":true";
+                }
+                output << endl;
+                PrintTabs(output, n_tabs) << "}";
+        }
+}
+
 string RootDirectory::ToXML(){
-	stringstream buffer;
-	uint32 i;
+        stringstream buffer;
+        WriteXML(buffer);
+        return buffer.str();
+}
 
-	buffer << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
-	buffer << "<root xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"";
-	(*PrintAndReplaceReservedCharacters(&buffer, ExecutableDirectoryUtils::GetExecutableDirectoryURIUFT8())) << xsd_file_name << "\">" << endl;
+void RootDirectory::WriteXML(std::ostream& output) const {
+        output << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
+        output << "<root xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"";
+        WriteXmlEscaped(output, ExecutableDirectoryUtils::GetExecutableDirectoryURIUFT8().c_str());
+        output << xsd_file_name << "\">" << endl;
 
-	for(i = 0 ; i < content.size() ; i++){
-		buffer << content[i]->ToXML(1);
-	}
-	buffer << "</root>" << endl;
+        for(uint32 i = 0 ; i < content.size() ; i++){
+                WriteElementXML(content[i], output, 1);
+        }
+        output << "</root>" << endl;
+}
 
-	return buffer.str();
+void RootDirectory::WriteJSON(std::ostream& output) const {
+        output << "{" << endl;
+        PrintTabs(output, 1) << "\"entries\":[" << endl;
+        for (uint32 i = 0; i < content.size(); i++) {
+                WriteElementJSON(content[i], output, 2, "");
+                if (i + 1 < content.size()) {
+                        output << ",";
+                }
+                output << endl;
+        }
+        PrintTabs(output, 1) << "]" << endl;
+        output << "}" << endl;
 }
 
 class DOMTreeErrorReporter : public ErrorHandler {
