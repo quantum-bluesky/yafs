@@ -57,14 +57,14 @@
 				delete[] short_name;
 			}
 
-			virtual bool IsDirectory() = 0;
+                        virtual bool IsDirectory() const = 0;
 			virtual string ToXML(uint32 n_tabs) = 0;
-			bool operator<(FATElement &fat_element){
-				return order < fat_element.order;
-			}
-			bool HasVolumeIDAttribute(){
-				return (attributes & ATTR_VOLUME_ID) != 0;
-			}
+                        bool operator<(const FATElement &fat_element) const{
+                                return order < fat_element.order;
+                        }
+                        bool HasVolumeIDAttribute() const{
+                                return (attributes & ATTR_VOLUME_ID) != 0;
+                        }
 			friend class FATDevice;
 			friend class FATDirectory;
 			friend class RootDirectory;
@@ -85,9 +85,9 @@
 			FATFile(const DirectoryEntryStructure *de ,
 				const vector<LongDirectoryEntryStructure> lde):FATElement(de , lde){
 			}
-			virtual bool IsDirectory(){
-				return false;
-			}
+                        virtual bool IsDirectory() const{
+                                return false;
+                        }
 			virtual string ToXML(uint32 n_tabs);
 	};
 
@@ -97,9 +97,9 @@
 				const vector<LongDirectoryEntryStructure> lde):FATElement(de , lde){
 			}
 			virtual ~FATDirectory();
-			virtual bool IsDirectory(){
-				return true;
-			}
+                        virtual bool IsDirectory() const{
+                                return true;
+                        }
 			virtual string ToXML(uint32 n_tabs);
 			void InsertFATElement(FATElement *fat_element);
 			void Sort();
