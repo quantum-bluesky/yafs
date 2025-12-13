@@ -21,4 +21,11 @@
 
 using std::string;
 
-const string Version::VERSION = "2023_01_22";
+#define YAFS_STRINGIZE_IMPL(x) #x
+#define YAFS_STRINGIZE(x) YAFS_STRINGIZE_IMPL(x)
+
+#ifdef YAFS_VERSION
+const string Version::VERSION = YAFS_STRINGIZE(YAFS_VERSION);
+#else
+const string Version::VERSION = "2025_12_13";
+#endif

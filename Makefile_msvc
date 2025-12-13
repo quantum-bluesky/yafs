@@ -1,11 +1,15 @@
-CPPFLAGS=/c /EHsc /nologo /W4 /DWIN_SYSTEM /I"D:\Documents\home\librarys\xerces-c-3.2.3\src" /I"D:\Documents\home\librarys\xerces-c-3.2.3\build\src" \
+CPPFLAGS=/c /EHsc /nologo /W4 /DWIN_SYSTEM /I"D:\CMD\CopyUSB\xerces-c-3.3.0\src" /I"D:\CMD\CopyUSB\xerces-c-3.3.0\build\src" \
 	/wd4458 /wd4706 /wd4456
+
+!IFDEF YAFS_VERSION
+CPPFLAGS=$(CPPFLAGS) /DYAFS_VERSION=$(YAFS_VERSION)
+!ENDIF
 
 .cpp{bin\}.obj:
 	$(CPP) $(CPPFLAGS) $< /Fo$@
 
 bin\yafs.exe : bin\command_line_parser.obj bin\fat_device.obj bin\fat_elements.obj bin\file_io.obj bin\main.obj bin\unicode.obj bin\utils.obj bin\version.obj bin\xercesc.obj
-	link $** /OUT:$@ xerces-c_3.lib /NOLOGO /SUBSYSTEM:CONSOLE /CLRLOADEROPTIMIZATION:MD /LIBPATH:"D:\Documents\home\librarys\xerces-c-3.2.3\build\src\Release"
+	link $** /OUT:$@ xerces-c_3D.lib /NOLOGO /SUBSYSTEM:CONSOLE /CLRLOADEROPTIMIZATION:MD /LIBPATH:"C:\Tools\libs\lib"
 
 bin\command_line_parser.obj : Makefile_msvc command_line_parser.cpp command_line_parser.h
 
