@@ -1,2 +1,11 @@
 /bin/
 /dep/
+
+/dist/
+/build/
+/.vs/
+/CMakeFiles/
+/CMakeCache.txt
+/Testing/
+/third_party/xerces-c-3.3.0/
+/third_party/xerces-c-3.3.0/build/
