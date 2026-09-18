@@ -1,0 +1,29 @@
+Usage: yafs -d device_path -f file_path -{r | w} [-v]
+       yafs -d device_path -i [-v]
+
+-v   Activates the verbose mode that will print debug information.
+-d   It is used to specify the device that has a FAT file system. On Windows,
+     the argument must be the device letter, i.e. "e:". On Unix, the
+     argument is the device file, i.e. "/dev/hdb1".
+
+-f   It is used to specify the input or output file. If the option -r is used,
+     the program will use this file to store the current file system directory
+     tree. If the option -w is used, the program will read the sorted file
+     system directory tree from the file.
+
+-o   Optional. When used with -r selects the export format. Supported values
+     are "xml" (default) and "json".
+
+-i   With this option, the program only prints some information about the
+     device file system. It can't be combined with the -r or -w options.
+
+-r   With this option the program will print the current file system directory
+     tree in the file specified with -f option. It can't be combined with the
+     -i or -w options.
+
+-w   This option is the only one that modifies the device file system. The
+     program will read the sorted file system directory tree from the file
+     specified with -f option and then it will change the device file system
+     so the files and directories on it have an order equal to the order
+     specified in the input file. It can't be combined with the -i or -r
+     options.
