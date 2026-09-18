@@ -1,0 +1,11 @@
+﻿{
+    "Xerces":  "3.3.0 static",
+    "Version":  "1.2.0",
+    "Architecture":  "x86",
+    "SHA256":  "BC802327AA48E8D6B41137CA962A2428D6555B5685CF1491E4B522E85E84268F",
+    "Dependencies":  [
+                         "KERNEL32.dll",
+                         "ADVAPI32.dll"
+                     ],
+    "Runtime":  "MSVC /MT Release"
+}
